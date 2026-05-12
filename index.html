@@ -2,128 +2,74 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>내 주변 최저가 주유소</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>주유소 최저가 찾기</title>
 <style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  :root { --primary:#2563eb; --bg:#f1f5f9; --card:#ffffff; --border:#e2e8f0; --text:#1e293b; --muted:#64748b; }
-  body { font-family:-apple-system, sans-serif; background:var(--bg); color:var(--text); }
-  .header { background:#1e40af; color:#fff; padding:16px; text-align:center; box-shadow:0 2px 8px rgba(0,0,0,0.1); }
-  .tabs { display:flex; gap:8px; padding:16px; background:#fff; }
-  .tab { flex:1; padding:12px; border:2px solid var(--border); border-radius:8px; background:#fff; font-weight:bold; cursor:pointer; }
-  .tab.active { border-color:var(--primary); color:var(--primary); background:#eff6ff; }
-  .range-box { padding:16px; background:#fff; border-top:1px solid var(--border); }
-  input[type=range] { width:100%; margin-top:8px; }
-  .info-bar { padding:12px 16px; background:#e0f2fe; font-size:13px; display:flex; justify-content:space-between; }
-  .list { padding:12px; }
-  .card { background:#fff; padding:16px; border-radius:12px; margin-bottom:12px; border:1px solid var(--border); box-shadow:0 2px 4px rgba(0,0,0,0.05); }
-  .card-header { display:flex; justify-content:space-between; align-items:center; }
-  .price { font-size:24px; font-weight:900; color:#000; }
-  .dist { font-size:12px; color:var(--muted); }
-  .badge { padding:2px 8px; border-radius:10px; font-size:10px; font-weight:bold; background:#dcfce7; color:#166534; }
-  .loading, .empty { text-align:center; padding:60px 20px; color:var(--muted); }
+  body { font-family: sans-serif; background: #f4f7f6; margin: 0; padding: 0; color: #333; }
+  .header { background: #2563eb; color: white; padding: 20px; text-align: center; font-weight: bold; }
+  .controls { background: white; padding: 15px; border-bottom: 1px solid #ddd; }
+  .btn-group { display: flex; gap: 5px; margin-bottom: 10px; }
+  .btn { flex: 1; padding: 10px; border: 1px solid #ddd; background: white; cursor: pointer; border-radius: 5px; }
+  .btn.active { background: #2563eb; color: white; border-color: #2563eb; }
+  .info { padding: 10px 15px; font-size: 13px; background: #e9ecef; display: flex; justify-content: space-between; }
+  .list { padding: 15px; }
+  .card { background: white; padding: 15px; border-radius: 10px; margin-bottom: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+  .price { font-size: 22px; font-weight: bold; color: #e11d48; }
+  .error-box { padding: 20px; color: #b91c1c; background: #fee2e2; border-radius: 10px; margin: 15px; line-height: 1.5; font-size: 14px; }
 </style>
 </head>
 <body>
-
-<div class="header">
-  <h1>⛽ 최저가 주유소 찾기</h1>
-</div>
-
-<div class="tabs">
-  <button class="tab active" onclick="setFuel('B027', this)">휘발유</button>
-  <button class="tab" onclick="setFuel('D047', this)">경유</button>
-  <button class="tab" onclick="setFuel('K015', this)">LPG</button>
-</div>
-
-<div class="range-box">
-  <div style="display:flex; justify-content:space-between">
-    <span>📍 검색 반경</span>
-    <b id="rangeTxt" style="color:var(--primary)">1km</b>
+<div class="header">⛽ 주변 최저가 주유소</div>
+<div class="controls">
+  <div class="btn-group">
+    <button class="btn active" onclick="setFuel('B027', this)">휘발유</button>
+    <button class="btn" onclick="setFuel('D047', this)">경유</button>
+    <button class="btn" onclick="setFuel('K015', this)">LPG</button>
   </div>
-  <input type="range" min="1" max="5" value="1" oninput="setRange(this)">
+  <div style="display:flex; justify-content:space-between; align-items:center;">
+    <span>반경: <b id="rTxt">1km</b></span>
+    <input type="range" min="1" max="5" value="1" oninput="setRange(this)" style="flex:1; margin-left:15px;">
+  </div>
 </div>
-
-<div class="info-bar">
-  <span id="locAddr">위치 파악 중...</span>
-  <button onclick="getLocation()" style="border:none; background:none; color:var(--primary); font-weight:bold; cursor:pointer">📡 갱신</button>
-</div>
-
+<div class="info"><span id="loc">위치 확인 중...</span><button onclick="init()">📡 갱신</button></div>
 <div id="content"></div>
 
 <script>
-let userLat, userLng, currentFuel = 'B027', currentRadius = 1;
+let lat, lng, fuel='B027', radius=1;
+function setFuel(f, b) { document.querySelectorAll('.btn').forEach(btn=>btn.classList.remove('active')); b.classList.add('active'); fuel=f; if(lat) load(); }
+function setRange(e) { radius=e.value; document.getElementById('rTxt').innerText=radius+'km'; if(lat) load(); }
 
-function setFuel(code, btn) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  btn.classList.add('active');
-  currentFuel = code;
-  if(userLat) loadData();
+function init() {
+  navigator.geolocation.getCurrentPosition(p => {
+    lat=p.coords.latitude; lng=p.coords.longitude;
+    document.getElementById('loc').innerText = `내 위치: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    load();
+  }, () => { document.getElementById('content').innerHTML = '<div class="error-box">위치 권한이 필요합니다.</div>'; });
 }
 
-function setRange(el) {
-  currentRadius = el.value;
-  document.getElementById('rangeTxt').innerText = currentRadius + 'km';
-  if(userLat) loadData();
-}
-
-function getLocation() {
-  document.getElementById('content').innerHTML = '<div class="loading">현재 위치 확인 중...</div>';
-  navigator.geolocation.getCurrentPosition(
-    p => {
-      userLat = p.coords.latitude;
-      userLng = p.coords.longitude;
-      document.getElementById('locAddr').innerText = `내 위치: ${userLat.toFixed(4)}, ${userLng.toFixed(4)}`;
-      loadData();
-    },
-    () => {
-      document.getElementById('content').innerHTML = '<div class="empty">위치 권한을 허용해 주세요.</div>';
-    }
-  );
-}
-
-async function loadData() {
-  const content = document.getElementById('content');
-  content.innerHTML = '<div class="loading">주유소 정보를 불러오고 있습니다...</div>';
-  
+async function load() {
+  const cont = document.getElementById('content');
+  cont.innerHTML = '<div style="text-align:center; padding:40px;">데이터 로딩 중...</div>';
   try {
-    const res = await fetch(`/.netlify/functions/gas?lat=${userLat}&lng=${userLng}&radius=${currentRadius}&fuel=${currentFuel}`);
+    const res = await fetch(`/.netlify/functions/gas?lat=${lat}&lng=${lng}&radius=${radius}&fuel=${fuel}`);
     const data = await res.json();
-
     if (data.error) {
-      content.innerHTML = `<div class="empty">⚠️ ${data.error}<br><small style="font-size:10px">${JSON.stringify(data.debug || '')}</small></div>`;
+      cont.innerHTML = `<div class="error-box"><b>⚠️ 실패:</b> ${data.error}<br><br><small>상세정보: ${JSON.stringify(data.debug || '')}</small></div>`;
       return;
     }
-
-    if (data.length === 0) {
-      content.innerHTML = `<div class="empty">🔍 ${currentRadius}km 내에 주유소가 없습니다.</div>`;
-      return;
-    }
-
-    let html = '<div class="list">';
-    data.sort((a,b) => a.price - b.price).forEach(s => {
-      html += `
-        <div class="card">
-          <div class="card-header">
-            <div>
-              <div style="font-size:15px; font-weight:bold">${s.name}</div>
-              <div class="dist">📍 ${(s.dist/1000).toFixed(1)}km</div>
-            </div>
-            <div class="price">${s.price.toLocaleString()}<span style="font-size:12px; font-weight:normal"> 원</span></div>
-          </div>
-          <div style="margin-top:10px">
-            ${s.isSelf ? '<span class="badge">셀프</span>' : ''}
-            ${s.is24h ? '<span class="badge" style="background:#fef3c7; color:#92400e; margin-left:4px">24시</span>' : ''}
-          </div>
-        </div>`;
+    let html = '';
+    data.forEach(s => {
+      html += `<div class="card">
+        <div style="display:flex; justify-content:space-between;">
+          <b>${s.name}</b> <span class="price">${s.price.toLocaleString()}원</span>
+        </div>
+        <div style="font-size:12px; color:gray; margin-top:5px;">거리: ${(s.dist/1000).toFixed(1)}km | ${s.isSelf?'셀프':''} ${s.is24h?'24시':''}</div>
+      </div>`;
     });
-    content.innerHTML = html + '</div>';
-  } catch (e) {
-    content.innerHTML = `<div class="empty">서버 연결 실패</div>`;
-  }
+    cont.innerHTML = html || '<div style="text-align:center; padding:40px;">주변에 주유소가 없습니다.</div>';
+  } catch(e) { cont.innerHTML = '<div class="error-box">서버 통신 실패</div>'; }
 }
-
-window.onload = getLocation;
+window.onload = init;
 </script>
 </body>
 </html>
