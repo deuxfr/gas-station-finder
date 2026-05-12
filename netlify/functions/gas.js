@@ -13,17 +13,25 @@ exports.handler = async function (event) {
     return { statusCode: 400, headers, body: JSON.stringify({ error: "파라미터 누락" }) };
   }
 
-  // API 호출 URL (os_nm=WGS84는 여기서 한 번만 명시)
-  const listUrl = `https://www.opinet.co.kr/api/aroundAll.do?code=${API_KEY}&x=${lng}&y=${lat}&radius=${parseInt(radius) * 1000}&prodcd=${fuel}&sort=1&out=json&os_nm=WGS84`;
+  // 1. 숫자형 변환 확인: 위경도가 문자열로 인식되어 오차가 생기는 경우 방지
+  const x = parseFloat(lng);
+  const y = parseFloat(lat);
+  const r = parseInt(radius) * 1000;
+
+  const listUrl = `https://www.opinet.co.kr/api/aroundAll.do?code=${API_KEY}&x=${x}&y=${y}&radius=${r}&prodcd=${fuel}&sort=1&out=json&os_nm=WGS84`;
 
   try {
     const data = await fetch_(listUrl);
     const json = JSON.parse(data);
 
-    // 데이터가 없는 경우 빈 배열 반환
-    const rawStations = json?.RESULT?.OIL || [];
-    
-    const stations = rawStations.map(s => ({
+    // 2. 오피넷 응답 메시지 확인: 결과가 없을 때 이유가 포함되어 오는지 체크
+    if (!json?.RESULT?.OIL) {
+      // 만약 RESULT 안에 에러 코드가 있다면 프론트로 전달 (디버깅용)
+      const errorMsg = json?.RESULT?.ERROR_MSG || "검색 결과가 없습니다.";
+      return { statusCode: 200, headers, body: JSON.stringify({ error: errorMsg, raw: json }) };
+    }
+
+    const stations = json.RESULT.OIL.map(s => ({
       id: s.UNI_ID,
       name: s.OS_NM,
       brand: s.POLL_DIV_CD,
@@ -41,7 +49,9 @@ exports.handler = async function (event) {
 
 function fetch_(url) {
   return new Promise((resolve, reject) => {
-    https.get(url, res => {
+    https.get(url, (res) => {
+      // 3. 인코딩 문제 해결: 한글 이름이 포함된 응답이 깨지지 않도록 처리
+      res.setEncoding('utf8'); 
       let body = "";
       res.on("data", chunk => (body += chunk));
       res.on("end", () => resolve(body));
