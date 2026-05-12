@@ -23,18 +23,20 @@ exports.handler = async function (event) {
     const json = JSON.parse(data);
     
     // 오피넷 응답에서 데이터 추출
-    const stations = (json?.RESULT?.OIL || []).map(s => ({
-      id:     s.UNI_ID,
-      name:   s.OS_NM,
-      brand:  s.POLL_DIV_CD,
-      price:  s.PRICE,
-      dist:   Math.round(s.DISTANCE),
-      x:      s.GIS_X_COOR,
-      y:      s.GIS_Y_COOR,
-      // 24시간 영업 여부 추가 (오피넷 응답값 기준)
-      is24h:  s.OPNG_HH === "0" && s.CLSG_HH === "0",
-      isSelf: s.SELF_YN === "Y",
-    }));
+// 기존: const stations = (json?.RESULT?.OIL || []).map(...)
+// 수정: 대소문자 및 구조적 예외 처리 보강
+
+const resultData = json?.RESULT?.OIL || json?.result?.oil || json?.RESULT?.oil || [];
+
+const stations = resultData.map(s => ({
+  id:     s.UNI_ID || s.uni_id,
+  name:   s.OS_NM || s.os_nm,
+  brand:  s.POLL_DIV_CD || s.poll_div_cd,
+  price:  parseInt(s.PRICE || s.price),
+  dist:   Math.round(s.DISTANCE || s.distance),
+  is24h:  (s.OPNG_HH === "00" || s.opng_hh === "00") && (s.CLSG_HH === "00" || s.clsg_hh === "00"),
+  isSelf: (s.SELF_YN === "Y" || s.self_yn === "Y"),
+}));
 
     return {
       statusCode: 200,
