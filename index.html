@@ -197,8 +197,9 @@ async function loadStations() {
   try {
     // 1. 경로 수정: /.netlify/functions/ 접두사 추가
     // 2. 파라미터 수정: 오피넷 위경도 인식을 위해 &os_nm=WGS84 추가
-    const url = `/.netlify/functions/gas?lat=${userLat}&lng=${userLng}&radius=${currentRadius}&fuel=${currentFuel}&os_nm=WGS84`;
-    
+    // 수정 전: const url = `/.netlify/functions/gas?lat=${userLat}&lng=${userLng}&radius=${currentRadius}&fuel=${currentFuel}&os_nm=WGS84`;
+// 수정 후: 깔끔하게 정리
+const url = `/.netlify/functions/gas?lat=${userLat}&lng=${userLng}&radius=${currentRadius}&fuel=${currentFuel}`;
     const res = await fetch(url);
     
     if (!res.ok) {
