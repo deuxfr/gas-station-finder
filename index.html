@@ -2,74 +2,284 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>주유소 최저가 찾기</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>내 주변 최저가 주유소</title>
 <style>
-  body { font-family: sans-serif; background: #f4f7f6; margin: 0; padding: 0; color: #333; }
-  .header { background: #2563eb; color: white; padding: 20px; text-align: center; font-weight: bold; }
-  .controls { background: white; padding: 15px; border-bottom: 1px solid #ddd; }
-  .btn-group { display: flex; gap: 5px; margin-bottom: 10px; }
-  .btn { flex: 1; padding: 10px; border: 1px solid #ddd; background: white; cursor: pointer; border-radius: 5px; }
-  .btn.active { background: #2563eb; color: white; border-color: #2563eb; }
-  .info { padding: 10px 15px; font-size: 13px; background: #e9ecef; display: flex; justify-content: space-between; }
-  .list { padding: 15px; }
-  .card { background: white; padding: 15px; border-radius: 10px; margin-bottom: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-  .price { font-size: 22px; font-weight: bold; color: #e11d48; }
-  .error-box { padding: 20px; color: #b91c1c; background: #fee2e2; border-radius: 10px; margin: 15px; line-height: 1.5; font-size: 14px; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  :root {
+    --primary:#2563eb; --primary-dark:#1d4ed8;
+    --green:#16a34a; --orange:#ea580c;
+    --bg:#f1f5f9; --card:#ffffff;
+    --text:#1e293b; --muted:#64748b; --border:#e2e8f0;
+  }
+  body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+
+  .header { background:linear-gradient(135deg,#1e40af,#2563eb); color:#fff; padding:16px; text-align:center; position:sticky; top:0; z-index:100; box-shadow:0 2px 12px rgba(37,99,235,.3); }
+  .header h1 { font-size:18px; font-weight:700; }
+  .header p  { font-size:12px; opacity:.8; margin-top:2px; }
+
+  .fuel-tabs { display:flex; gap:8px; padding:16px; background:var(--card); border-bottom:1px solid var(--border); }
+  .fuel-tab  { flex:1; padding:10px 4px; border:2px solid var(--border); border-radius:10px; background:#fff; font-size:13px; font-weight:600; color:var(--muted); cursor:pointer; transition:all .2s; text-align:center; }
+  .fuel-tab.active { border-color:var(--primary); background:#eff6ff; color:var(--primary); }
+
+  .range-section { background:var(--card); padding:16px; border-bottom:1px solid var(--border); }
+  .range-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+  .range-label { font-size:14px; font-weight:600; }
+  .range-value { font-size:20px; font-weight:800; color:var(--primary); }
+  input[type=range] { width:100%; -webkit-appearance:none; height:6px; border-radius:3px; outline:none; cursor:pointer; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:24px; height:24px; border-radius:50%; background:var(--primary); box-shadow:0 2px 8px rgba(37,99,235,.4); }
+  .km-marks { display:flex; justify-content:space-between; margin-top:6px; }
+  .km-mark  { font-size:11px; color:var(--muted); }
+
+  .location-bar { display:flex; align-items:center; gap:10px; padding:12px 16px; background:#eff6ff; border-bottom:1px solid #bfdbfe; }
+  .loc-icon { font-size:18px; }
+  .loc-text { flex:1; font-size:13px; }
+  .loc-text span { color:var(--muted); font-size:11px; display:block; }
+  .btn-locate { padding:8px 14px; background:var(--primary); color:#fff; border:none; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap; }
+
+  .stats-bar { display:flex; gap:1px; background:var(--border); }
+  .stat      { flex:1; background:var(--card); padding:10px 8px; text-align:center; }
+  .stat-val  { font-size:16px; font-weight:800; color:var(--primary); }
+  .stat-lbl  { font-size:10px; color:var(--muted); margin-top:2px; }
+
+  .sort-bar  { display:flex; align-items:center; justify-content:space-between; padding:10px 16px; background:var(--card); border-bottom:1px solid var(--border); }
+  .sort-label{ font-size:13px; color:var(--muted); }
+  .sort-btns { display:flex; gap:6px; }
+  .sort-btn  { padding:5px 12px; border:1px solid var(--border); border-radius:20px; font-size:12px; font-weight:600; background:#fff; color:var(--muted); cursor:pointer; }
+  .sort-btn.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+
+  .list { padding:12px; display:flex; flex-direction:column; gap:10px; }
+  .card { background:var(--card); border-radius:14px; padding:14px; box-shadow:0 1px 4px rgba(0,0,0,.07); border:1px solid var(--border); position:relative; overflow:hidden; }
+  .card.rank-1::before,.card.rank-2::before,.card.rank-3::before { content:''; position:absolute; left:0; top:0; bottom:0; width:4px; }
+  .card.rank-1::before { background:var(--green); }
+  .card.rank-2::before { background:#ca8a04; }
+  .card.rank-3::before { background:var(--orange); }
+  .card-top  { display:flex; justify-content:space-between; align-items:flex-start; }
+  .card-name { font-size:15px; font-weight:700; padding-right:28px; }
+  .card-brand{ font-size:11px; color:var(--muted); margin-top:2px; }
+  .price-badge { text-align:right; }
+  .price-main { font-size:22px; font-weight:900; }
+  .price-unit { font-size:11px; color:var(--muted); }
+  .card-bottom{ display:flex; align-items:center; justify-content:space-between; margin-top:10px; padding-top:10px; border-top:1px solid var(--border); }
+  .card-dist { font-size:12px; color:var(--muted); }
+  .card-tags { display:flex; gap:5px; }
+  .tag       { padding:3px 8px; border-radius:20px; font-size:10px; font-weight:600; }
+  .tag-24h   { background:#fef3c7; color:#92400e; }
+  .tag-self  { background:#dcfce7; color:#166534; }
+  .tag-cheap { background:#dbeafe; color:#1e40af; }
+  .rank-badge{ position:absolute; top:12px; right:12px; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; color:#fff; }
+  .rank-1 .rank-badge { background:var(--green); }
+  .rank-2 .rank-badge { background:#ca8a04; }
+  .rank-3 .rank-badge { background:var(--orange); }
+
+  .cheapest-banner { background:linear-gradient(135deg,#16a34a,#15803d); color:#fff; margin:12px; border-radius:14px; padding:14px; display:flex; align-items:center; gap:12px; }
+  .cheapest-icon   { font-size:28px; }
+  .cheapest-info h3{ font-size:14px; font-weight:700; }
+  .cheapest-info p { font-size:12px; opacity:.85; margin-top:2px; }
+  .cheapest-price  { margin-left:auto; text-align:right; }
+  .cheapest-price strong { font-size:24px; font-weight:900; }
+  .cheapest-price span   { font-size:11px; opacity:.8; display:block; }
+
+  .loading { text-align:center; padding:48px 16px; color:var(--muted); }
+  .spinner { width:40px; height:40px; border:3px solid var(--border); border-top-color:var(--primary); border-radius:50%; animation:spin .8s linear infinite; margin:0 auto 12px; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .empty { text-align:center; padding:48px 16px; color:var(--muted); }
+  .empty-icon { font-size:48px; margin-bottom:12px; }
+
+  .error-box { margin:16px; padding:14px; background:#fef2f2; border:1px solid #fca5a5; border-radius:12px; color:#991b1b; font-size:13px; line-height:1.6; }
 </style>
 </head>
 <body>
-<div class="header">⛽ 주변 최저가 주유소</div>
-<div class="controls">
-  <div class="btn-group">
-    <button class="btn active" onclick="setFuel('B027', this)">휘발유</button>
-    <button class="btn" onclick="setFuel('D047', this)">경유</button>
-    <button class="btn" onclick="setFuel('K015', this)">LPG</button>
+
+<div class="header">
+  <h1>⛽ 내 주변 최저가 주유소</h1>
+  <p>오피넷 실시간 유가 정보</p>
+</div>
+
+<div class="fuel-tabs">
+  <button class="fuel-tab active" data-fuel="B027" onclick="setFuel(this)">🟢 휘발유</button>
+  <button class="fuel-tab" data-fuel="D047" onclick="setFuel(this)">🟡 경유</button>
+  <button class="fuel-tab" data-fuel="K015" onclick="setFuel(this)">🔵 LPG</button>
+</div>
+
+<div class="range-section">
+  <div class="range-header">
+    <span class="range-label">📍 검색 반경</span>
+    <span class="range-value" id="rangeVal">1km</span>
   </div>
-  <div style="display:flex; justify-content:space-between; align-items:center;">
-    <span>반경: <b id="rTxt">1km</b></span>
-    <input type="range" min="1" max="5" value="1" oninput="setRange(this)" style="flex:1; margin-left:15px;">
+  <input type="range" id="radiusSlider" min="1" max="5" step="1" value="1" oninput="onSlider(this)">
+  <div class="km-marks">
+    <span class="km-mark">1km</span><span class="km-mark">2km</span>
+    <span class="km-mark">3km</span><span class="km-mark">4km</span>
+    <span class="km-mark">5km</span>
   </div>
 </div>
-<div class="info"><span id="loc">위치 확인 중...</span><button onclick="init()">📡 갱신</button></div>
-<div id="content"></div>
+
+<div class="location-bar">
+  <span class="loc-icon">📌</span>
+  <div class="loc-text">
+    <strong id="locAddr">위치를 가져오는 중...</strong>
+    <span id="locCoord"></span>
+  </div>
+  <button class="btn-locate" onclick="getLocation()">📡 갱신</button>
+</div>
+
+<div class="stats-bar" id="statsBar" style="display:none">
+  <div class="stat"><div class="stat-val" id="statCount">-</div><div class="stat-lbl">주유소 수</div></div>
+  <div class="stat"><div class="stat-val" id="statMin">-</div><div class="stat-lbl">최저가</div></div>
+  <div class="stat"><div class="stat-val" id="statAvg">-</div><div class="stat-lbl">평균가</div></div>
+  <div class="stat"><div class="stat-val" id="statMax">-</div><div class="stat-lbl">최고가</div></div>
+</div>
+
+<div class="sort-bar" id="sortBar" style="display:none">
+  <span class="sort-label">정렬:</span>
+  <div class="sort-btns">
+    <button class="sort-btn active" onclick="setSort('price',this)">💰 가격순</button>
+    <button class="sort-btn" onclick="setSort('dist',this)">📍 거리순</button>
+  </div>
+</div>
+
+<div id="content">
+  <div class="loading"><div class="spinner"></div><p>위치 정보를 가져오는 중...</p></div>
+</div>
 
 <script>
-let lat, lng, fuel='B027', radius=1;
-function setFuel(f, b) { document.querySelectorAll('.btn').forEach(btn=>btn.classList.remove('active')); b.classList.add('active'); fuel=f; if(lat) load(); }
-function setRange(e) { radius=e.value; document.getElementById('rTxt').innerText=radius+'km'; if(lat) load(); }
+const BRAND = {
+  SKE:'SK에너지', GSC:'GS칼텍스', HDO:'현대오일뱅크', SOL:'S-OIL',
+  RTE:'자영알뜰', RTX:'고속도로알뜰', NHO:'농협알뜰', ETC:'자영',
+  E1G:'E1', SKG:'SK가스'
+};
 
-function init() {
-  navigator.geolocation.getCurrentPosition(p => {
-    lat=p.coords.latitude; lng=p.coords.longitude;
-    document.getElementById('loc').innerText = `내 위치: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-    load();
-  }, () => { document.getElementById('content').innerHTML = '<div class="error-box">위치 권한이 필요합니다.</div>'; });
+let userLat=null, userLng=null, currentFuel='B027', currentRadius=1, sortMode='price', stations=[];
+
+function onSlider(el) {
+  currentRadius = +el.value;
+  document.getElementById('rangeVal').textContent = currentRadius + 'km';
+  const pct = (currentRadius-1)/4*100;
+  el.style.background = `linear-gradient(to right,#2563eb 0%,#2563eb ${pct}%,#e2e8f0 ${pct}%)`;
+  if (userLat) loadStations();
 }
 
-async function load() {
-  const cont = document.getElementById('content');
-  cont.innerHTML = '<div style="text-align:center; padding:40px;">데이터 로딩 중...</div>';
+function setFuel(btn) {
+  document.querySelectorAll('.fuel-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  currentFuel = btn.dataset.fuel;
+  if (userLat) loadStations();
+}
+
+function setSort(mode, btn) {
+  sortMode = mode;
+  document.querySelectorAll('.sort-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  render(stations);
+}
+
+// ── 위치 ──
+function getLocation() {
+  showLoading('📡 현재 위치를 확인하는 중...');
+  if (!navigator.geolocation) { alert('위치 서비스를 지원하지 않는 브라우저입니다.'); return; }
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      userLat = pos.coords.latitude;
+      userLng = pos.coords.longitude;
+      document.getElementById('locAddr').textContent = '현재 내 위치';
+      document.getElementById('locCoord').textContent = `${userLat.toFixed(5)}, ${userLng.toFixed(5)}`;
+      loadStations();
+    },
+    () => alert('위치 권한을 허용해 주세요.'),
+    { timeout:10000, maximumAge:60000 }
+  );
+}
+
+// ── API 호출 ──
+async function loadStations() {
+  showLoading('⛽ 주유소 정보를 불러오는 중...');
   try {
-    const res = await fetch(`/.netlify/functions/gas?lat=${lat}&lng=${lng}&radius=${radius}&fuel=${fuel}`);
-    const data = await res.json();
-    if (data.error) {
-      cont.innerHTML = `<div class="error-box"><b>⚠️ 실패:</b> ${data.error}<br><br><small>상세정보: ${JSON.stringify(data.debug || '')}</small></div>`;
-      return;
-    }
-    let html = '';
-    data.forEach(s => {
-      html += `<div class="card">
-        <div style="display:flex; justify-content:space-between;">
-          <b>${s.name}</b> <span class="price">${s.price.toLocaleString()}원</span>
-        </div>
-        <div style="font-size:12px; color:gray; margin-top:5px;">거리: ${(s.dist/1000).toFixed(1)}km | ${s.isSelf?'셀프':''} ${s.is24h?'24시':''}</div>
-      </div>`;
-    });
-    cont.innerHTML = html || '<div style="text-align:center; padding:40px;">주변에 주유소가 없습니다.</div>';
-  } catch(e) { cont.innerHTML = '<div class="error-box">서버 통신 실패</div>'; }
+    const url = `/api/gas?lat=${userLat}&lng=${userLng}&radius=${currentRadius}&fuel=${currentFuel}`;
+    const res  = await fetch(url);
+    if (!res.ok) throw new Error('서버 오류 ' + res.status);
+    stations = await res.json();
+    if (stations.error) throw new Error(stations.error);
+    render(stations);
+  } catch(e) {
+    document.getElementById('statsBar').style.display='none';
+    document.getElementById('sortBar').style.display='none';
+    document.getElementById('content').innerHTML =
+      `<div class="error-box">⚠️ 데이터를 불러오지 못했습니다.<br>${e.message}</div>`;
+  }
 }
-window.onload = init;
+
+// ── 렌더 ──
+function render(list) {
+  const sorted = [...list].sort((a,b) =>
+    sortMode==='price' ? a.price-b.price : a.dist-b.dist
+  );
+
+  const statsBar = document.getElementById('statsBar');
+  const sortBar  = document.getElementById('sortBar');
+
+  if (!sorted.length) {
+    statsBar.style.display='none'; sortBar.style.display='none';
+    document.getElementById('content').innerHTML =
+      `<div class="empty"><div class="empty-icon">🔍</div>
+       <p><strong>${currentRadius}km 이내</strong>에 주유소가 없습니다.<br>검색 범위를 늘려보세요.</p></div>`;
+    return;
+  }
+
+  const prices = sorted.map(s=>s.price);
+  statsBar.style.display='flex'; sortBar.style.display='flex';
+  document.getElementById('statCount').textContent = sorted.length+'개';
+  document.getElementById('statMin').textContent   = Math.min(...prices).toLocaleString()+'원';
+  document.getElementById('statAvg').textContent   = Math.round(prices.reduce((a,b)=>a+b,0)/prices.length).toLocaleString()+'원';
+  document.getElementById('statMax').textContent   = Math.max(...prices).toLocaleString()+'원';
+
+  const best = sorted[0];
+  let html = `<div class="cheapest-banner">
+    <span class="cheapest-icon">🏆</span>
+    <div class="cheapest-info">
+      <h3>최저가 주유소</h3>
+      <p>${BRAND[best.brand]||best.brand} · ${(best.dist/1000).toFixed(1)}km</p>
+      <p style="font-size:13px;font-weight:700;margin-top:2px">${best.name}</p>
+    </div>
+    <div class="cheapest-price"><strong>${best.price.toLocaleString()}</strong><span>원/L</span></div>
+  </div><div class="list">`;
+
+  sorted.forEach((s,i) => {
+    const rank = i+1;
+    const rc   = rank<=3 ? `rank-${rank}` : '';
+    const tags = [];
+    if (s.is24h)  tags.push('<span class="tag tag-24h">24시</span>');
+    if (s.isSelf) tags.push('<span class="tag tag-self">셀프</span>');
+    if (rank===1) tags.push('<span class="tag tag-cheap">최저가</span>');
+    html += `<div class="card ${rc}">
+      ${rank<=3?`<div class="rank-badge">${rank}</div>`:''}
+      <div class="card-top">
+        <div><div class="card-name">${s.name}</div><div class="card-brand">${BRAND[s.brand]||s.brand}</div></div>
+        <div class="price-badge"><div class="price-main">${s.price.toLocaleString()}</div><div class="price-unit">원/L</div></div>
+      </div>
+      <div class="card-bottom">
+        <div class="card-dist">📍 ${(s.dist/1000).toFixed(1)}km</div>
+        <div class="card-tags">${tags.join('')}</div>
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+  document.getElementById('content').innerHTML = html;
+}
+
+function showLoading(msg) {
+  document.getElementById('statsBar').style.display='none';
+  document.getElementById('sortBar').style.display='none';
+  document.getElementById('content').innerHTML =
+    `<div class="loading"><div class="spinner"></div><p>${msg}</p></div>`;
+}
+
+// ── 초기화 ──
+window.onload = () => {
+  const sl = document.getElementById('radiusSlider');
+  sl.style.background = 'linear-gradient(to right,#2563eb 0%,#2563eb 0%,#e2e8f0 0%)';
+  getLocation();
+};
 </script>
 </body>
 </html>
