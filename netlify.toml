@@ -2,6 +2,12 @@
   functions = "netlify/functions"
   publish   = "."
 
+# /api/gas → Netlify 함수로 라우팅
+[[redirects]]
+  from   = "/api/gas"
+  to     = "/.netlify/functions/gas"
+  status = 200
+
 [[headers]]
   for = "/*"
   [headers.values]
